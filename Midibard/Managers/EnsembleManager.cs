@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Dalamud.Hooking;
@@ -9,6 +10,7 @@ using Melanchall.DryWetMidi.Devices;
 using Melanchall.DryWetMidi.Interaction;
 using MidiBard.Control.MidiControl;
 using MidiBard.Managers.Agents;
+using playlibnamespace;
 using static MidiBard.MidiBard;
 
 namespace MidiBard.Managers;
@@ -29,6 +31,13 @@ internal class EnsembleManager : IDisposable
     {
         UpdateMetronomeHook = new Hook<sub_140C87B40>(Offsets.UpdateMetronome, HandleUpdateMetronome);
         UpdateMetronomeHook.Enable();
+
+        _getWindowByName = (Func<string, IntPtr>)typeof(playlib)
+            .GetField("getWindowByName", BindingFlags.NonPublic | BindingFlags.Static)?
+            .GetValue(null);
+
+        _sendActionMi = typeof(playlib)
+            .GetMethod("SendAction", BindingFlags.NonPublic | BindingFlags.Static);
     }
 
     private IntPtr HandleUpdateMetronome(IntPtr agentMetronome, byte currentBeat)
@@ -130,8 +139,13 @@ internal class EnsembleManager : IDisposable
                                     await FilePlayback.LoadPlayback(playing, false, !config.bmpTrackNames);
                                 }
 
-                                MidiBard.CurrentPlayback.Stop();
-                                MidiBard.CurrentPlayback.MoveToStart();
+                                CurrentPlayback.Stop();
+                                CurrentPlayback.MoveToStart();
+
+                                MetricTimeSpan playbackDuration = CurrentPlayback.GetDuration<MetricTimeSpan>();
+                                // PluginLog.Warning($"PlaybackEnd1: {playbackDuration}");
+                                CurrentPlayback.PlaybackEnd = playbackDuration.Add(new MetricTimeSpan(MidiBard.AgentMetronome.MetronomeBeatsPerBar * 1000L), TimeSpanMode.LengthLength);
+                                // PluginLog.Warning($"PlaybackEnd2: {CurrentPlayback.PlaybackEnd}");
                             }
                             catch (Exception e)
                             {
@@ -151,6 +165,37 @@ internal class EnsembleManager : IDisposable
             PluginLog.Error(e, $"error in {nameof(UpdateMetronomeHook)}");
             return IntPtr.Zero;
         }
+    }
+
+    private readonly Func<string, IntPtr> _getWindowByName;
+    private readonly MethodInfo _sendActionMi;
+
+    public async Task<bool> StopEnsemble()
+    {
+        if (_getWindowByName == null || _sendActionMi == null || !MidiBard.AgentMetronome.EnsembleModeRunning || !playlib.BeginReadyCheck())
+            return false;
+
+        IntPtr ptr = IntPtr.Zero;
+        for (int i = 0; i < 50; i++)
+        {
+            ptr = _getWindowByName("SelectYesno");
+            if (ptr != IntPtr.Zero)
+                break;
+
+            await Task.Delay(100);
+        }
+
+        if (ptr == IntPtr.Zero)
+            return false;
+
+        ulong[] args = { 3UL, 0UL, 3UL, 0UL };
+        do
+        {
+            _sendActionMi.Invoke(null, new object[]{ptr, args});
+            await Task.Delay(100);
+        } while ((ptr = _getWindowByName("SelectYesno")) != IntPtr.Zero);
+
+        return true;
     }
 
     public event Action EnsembleStart;

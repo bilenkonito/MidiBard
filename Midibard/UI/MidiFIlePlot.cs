@@ -47,6 +47,7 @@ public partial class PluginUI
             RefreshPlotData();
         }
 
+        double realTimelinePos = 0;
         double timelinePos = 0;
 
         try
@@ -55,6 +56,8 @@ public partial class PluginUI
             if (currentPlayback != null)
             {
                 timelinePos = currentPlayback.GetCurrentTime<MetricTimeSpan>().GetTotalSeconds();
+                if (MidiBard.AgentMetronome.EnsembleModeRunning)
+                    realTimelinePos = Math.Max(0, timelinePos - MidiBard.AgentMetronome.MetronomeBeatsPerBar);
             }
         }
         catch (Exception e)
@@ -144,6 +147,13 @@ public partial class PluginUI
             drawList.AddLine(ImPlot.PlotToPixels(timelinePos, ImPlot.GetPlotLimits().Y.Min),
                 ImPlot.PlotToPixels(timelinePos, ImPlot.GetPlotLimits().Y.Max), ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudRed));
             ImPlot.PopPlotClipRect();
+
+            if (MidiBard.AgentMetronome.EnsembleModeRunning)
+            {
+                drawList.AddLine(ImPlot.PlotToPixels(realTimelinePos, ImPlot.GetPlotLimits().Y.Min),
+                    ImPlot.PlotToPixels(realTimelinePos, ImPlot.GetPlotLimits().Y.Max), ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedPurple));
+                ImPlot.PopPlotClipRect();
+            }
 
             ImPlot.EndPlot();
         }

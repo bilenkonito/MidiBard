@@ -52,6 +52,7 @@ public class MidiBard : IDalamudPlugin
     internal static AgentMetronome AgentMetronome { get; set; }
     internal static AgentPerformance AgentPerformance { get; set; }
     internal static AgentConfigSystem AgentConfigSystem { get; set; }
+    internal static EnsembleManager EnsembleManager { get; set; }
 
     private static int configSaverTick;
 
@@ -64,7 +65,7 @@ public class MidiBard : IDalamudPlugin
     internal static string[] InstrumentStrings;
 
     internal static IDictionary<SevenBitNumber, uint> ProgramInstruments;
-		
+
     internal static byte CurrentInstrument => Marshal.ReadByte(Offsets.PerformanceStructPtr + 3 + Offsets.InstrumentOffset);
     internal static byte CurrentTone => Marshal.ReadByte(Offsets.PerformanceStructPtr + 3 + Offsets.InstrumentOffset + 1);
     internal static readonly byte[] guitarGroup = { 24, 25, 26, 27, 28 };
@@ -119,7 +120,7 @@ public class MidiBard : IDalamudPlugin
         AgentMetronome = new AgentMetronome(AgentManager.Instance.FindAgentInterfaceByVtable(Offsets.MetronomeAgent));
         AgentPerformance = new AgentPerformance(AgentManager.Instance.FindAgentInterfaceByVtable(Offsets.PerformanceAgent));
         AgentConfigSystem = new AgentConfigSystem(AgentManager.Instance.FindAgentInterfaceByVtable(Offsets.AgentConfigSystem));
-        _ = EnsembleManager.Instance;
+        EnsembleManager = EnsembleManager.Instance;
 
 #if DEBUG
 			_ = NetworkManager.Instance;

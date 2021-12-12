@@ -4,6 +4,10 @@ using System.Threading.Tasks;
 using Dalamud.Logging;
 using Melanchall.DryWetMidi.Interaction;
 using MidiBard.Control.CharacterControl;
+using MidiBard.DalamudApi;
+using MidiBard.Managers;
+using MidiBard.Managers.Ipc;
+using playlibnamespace;
 using static MidiBard.MidiBard;
 
 namespace MidiBard.Control.MidiControl;
@@ -61,40 +65,52 @@ internal static class MidiPlayerControl
         }
         else
         {
+            if (AgentMetronome.EnsembleModeRunning)
+                return;
+
             if (MidiBard.IsPlaying)
             {
                 MidiPlayerControl.Pause();
             }
             else
             {
-                MidiPlayerControl.Play();
+                if (!api.PartyList.IsPartyLeader() || !(playlib.BeginReadyCheck() && playlib.ConfirmBeginReadyCheck()))
+                {
+                    MidiPlayerControl.Play();
+                }
             }
         }
     }
 
     internal static void Stop()
     {
-        try
+        Task.Run(async () =>
         {
-            if (CurrentPlayback == null)
+            try
             {
-                CurrentTracks.Clear();
+                if (CurrentPlayback == null)
+                {
+                    CurrentTracks.Clear();
+                }
+                else
+                {
+                    if (api.PartyList.IsPartyLeader() && !await MidiBard.EnsembleManager.StopEnsemble())
+                        return;
+
+                    CurrentPlayback?.Stop();
+                    CurrentPlayback?.MoveToTime(new MidiTimeSpan(0));
+                }
             }
-            else
+            catch (Exception e)
             {
-                CurrentPlayback?.Stop();
-                CurrentPlayback?.MoveToTime(new MidiTimeSpan(0));
+                PluginLog.Warning("Already stopped!");
             }
-        }
-        catch (Exception e)
-        {
-            PluginLog.Warning("Already stopped!");
-        }
-        finally
-        {
-            CurrentPlayback?.Dispose();
-            CurrentPlayback = null;
-        }
+            finally
+            {
+                CurrentPlayback?.Dispose();
+                CurrentPlayback = null;
+            }
+        });
     }
 
     internal static void Next()

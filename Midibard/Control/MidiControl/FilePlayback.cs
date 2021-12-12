@@ -14,8 +14,11 @@ using Melanchall.DryWetMidi.Standards;
 using Melanchall.DryWetMidi.Tools;
 using MidiBard.Control.CharacterControl;
 using MidiBard.Control.MidiControl.PlaybackInstance;
+using MidiBard.DalamudApi;
+using MidiBard.Managers;
 using MidiBard.Managers.Ipc;
 using MidiBard.Util;
+using playlibnamespace;
 using static MidiBard.MidiBard;
 
 namespace MidiBard.Control.MidiControl;
@@ -89,7 +92,7 @@ public static class FilePlayback
                 {
                     //order chords so they always play from low to high
                     NoteOnEvent noteOn => noteOn.NoteNumber,
-                    //order program change events so they always get processed before notes 
+                    //order program change events so they always get processed before notes
                     ProgramChangeEvent => -2,
                     //keep other unimportant events order
                     _ => -1
@@ -218,17 +221,27 @@ public static class FilePlayback
         {
             try
             {
-                if (MidiBard.AgentMetronome.EnsembleModeRunning)
-                    return;
+                bool wasEnsembleRunning = AgentMetronome.EnsembleModeRunning;
+                if (wasEnsembleRunning)
+                    await Task.Delay(AgentMetronome.MetronomeBeatsPerBar * 1000);
+
                 if (!PlaylistManager.FilePathList.Any())
                     return;
 
-                PerformWaiting(config.secondsBetweenTracks);
+                await Task.Delay((int)MathF.Floor(config.secondsBetweenTracks * 1000));
                 if (needToCancel)
                 {
                     needToCancel = false;
                     return;
                 }
+
+                if (wasEnsembleRunning)
+                {
+                    if (!await MidiBard.EnsembleManager.StopEnsemble())
+                        return;
+                }
+
+                bool isPartyLeader = api.PartyList.IsPartyLeader();
 
                 switch ((PlayMode)config.PlayMode)
                 {
@@ -236,15 +249,38 @@ public static class FilePlayback
                         break;
 
                     case PlayMode.SingleRepeat:
-                        CurrentPlayback.MoveToStart();
-                        CurrentPlayback.Start();
+                        if (wasEnsembleRunning)
+                        {
+                            if (await LoadPlayback(PlaylistManager.CurrentPlaying) && isPartyLeader)
+                            {
+                                playlib.BeginReadyCheck();
+                                playlib.ConfirmBeginReadyCheck();
+                            }
+                        }
+                        else
+                        {
+                            CurrentPlayback?.MoveToStart();
+                            CurrentPlayback?.Start();
+                        }
                         break;
 
                     case PlayMode.ListOrdered:
                         if (PlaylistManager.CurrentPlaying + 1 < PlaylistManager.FilePathList.Count)
                         {
-                            if (await LoadPlayback(PlaylistManager.CurrentPlaying + 1, true))
+                            if (await LoadPlayback(PlaylistManager.CurrentPlaying + 1))
                             {
+                                if (wasEnsembleRunning)
+                                {
+                                    if (isPartyLeader)
+                                    {
+                                        playlib.BeginReadyCheck();
+                                        playlib.ConfirmBeginReadyCheck();
+                                    }
+                                }
+                                else
+                                {
+                                    CurrentPlayback?.Start();
+                                }
                             }
                         }
 
@@ -253,14 +289,38 @@ public static class FilePlayback
                     case PlayMode.ListRepeat:
                         if (PlaylistManager.CurrentPlaying + 1 < PlaylistManager.FilePathList.Count)
                         {
-                            if (await LoadPlayback(PlaylistManager.CurrentPlaying + 1, true))
+                            if (await LoadPlayback(PlaylistManager.CurrentPlaying + 1))
                             {
+                                if (wasEnsembleRunning)
+                                {
+                                    if (isPartyLeader)
+                                    {
+                                        playlib.BeginReadyCheck();
+                                        playlib.ConfirmBeginReadyCheck();
+                                    }
+                                }
+                                else
+                                {
+                                    CurrentPlayback?.Start();
+                                }
                             }
                         }
                         else
                         {
-                            if (await LoadPlayback(0, true))
+                            if (await LoadPlayback(0))
                             {
+                                if (wasEnsembleRunning)
+                                {
+                                    if (isPartyLeader)
+                                    {
+                                        playlib.BeginReadyCheck();
+                                        playlib.ConfirmBeginReadyCheck();
+                                    }
+                                }
+                                else
+                                {
+                                    CurrentPlayback?.Start();
+                                }
                             }
                         }
 
@@ -270,7 +330,7 @@ public static class FilePlayback
 
                         if (PlaylistManager.FilePathList.Count == 1)
                         {
-                            CurrentPlayback.MoveToStart();
+                            CurrentPlayback?.MoveToStart();
                             break;
                         }
 
