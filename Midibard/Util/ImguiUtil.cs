@@ -182,4 +182,5 @@ public static class ImGuiUtil
     public const uint alphaedgrassgreen = 0x3C60FF8E;
     public const uint darkgreen = 0xAC104020;
     public const uint violet = 0xAAFF888E;
+    public const uint blue = 0x60FF9900;
 }
