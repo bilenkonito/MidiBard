@@ -45,18 +45,23 @@ public partial class PluginUI
     public void Open()
     {
         MainWindowVisible = true;
+        MidiBard.EnsembleManager.EnsemblePrepare += this.RefreshPlotData;
+        MidiBard.EnsembleManager.EnsembleStart += this.RefreshPlotData;
     }
 
     public void Close()
     {
         MainWindowVisible = false;
+        MidiBard.EnsembleManager.EnsembleStart -= this.RefreshPlotData;
+        MidiBard.EnsembleManager.EnsemblePrepare -= this.RefreshPlotData;
     }
 
     public unsafe void Draw()
     {
 #if DEBUG
-			//if (ImGui.Button("Debug info", new Vector2(-2, ImGui.GetFrameHeight()))) MidiBard.Debug ^= true;
-			DrawDebugWindow();
+			// if (ImGui.Button("Debug info", new Vector2(-2, ImGui.GetFrameHeight()))) MidiBard.Debug ^= true;
+            if (MidiBard.Debug)
+			    DrawDebugWindow();
 #endif
         fileDialogManager.Draw();
         if (MainWindowVisible)
@@ -111,6 +116,10 @@ public partial class PluginUI
                     {
                         DrawColoredBanner(red, "Ensemble Mode Running".Localize());
                     }
+                }
+                else
+                {
+                    DrawColoredBanner(blue, "Solo Mode".Localize());
                 }
 
                 if (listeningForEvents)

@@ -49,11 +49,13 @@ internal static class MidiPlayerControl
                 SwitchSong(PlaylistManager.CurrentPlaying, true);
             }
         }
+        Ui.RefreshPlotData();
     }
 
     internal static void Pause()
     {
         CurrentPlayback?.Stop();
+        Ui.RefreshPlotData();
     }
 
 
@@ -80,6 +82,7 @@ internal static class MidiPlayerControl
                 }
             }
         }
+        Ui.RefreshPlotData();
     }
 
     internal static void Stop()

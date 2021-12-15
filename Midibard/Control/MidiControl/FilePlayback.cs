@@ -221,9 +221,13 @@ public static class FilePlayback
         {
             try
             {
+                Ui.RefreshPlotData();
+
                 bool wasEnsembleRunning = AgentMetronome.EnsembleModeRunning;
                 if (wasEnsembleRunning)
                     await Task.Delay(AgentMetronome.MetronomeBeatsPerBar * 1000);
+
+                CurrentPlayback?.Stop();
 
                 if (!PlaylistManager.FilePathList.Any())
                     return;
@@ -235,15 +239,17 @@ public static class FilePlayback
                     return;
                 }
 
-                if (wasEnsembleRunning)
+                PlayMode playMode = (PlayMode)config.PlayMode;
+                if (wasEnsembleRunning && playMode != PlayMode.Single && playMode != PlayMode.Random)
                 {
-                    if (!await MidiBard.EnsembleManager.StopEnsemble())
-                        return;
+                    await SwitchInstrument.SwitchTo(0);
+                    // if (!await MidiBard.EnsembleManager.StopEnsemble())
+                        // return;
                 }
 
                 bool isPartyLeader = api.PartyList.IsPartyLeader();
 
-                switch ((PlayMode)config.PlayMode)
+                switch (playMode)
                 {
                     case PlayMode.Single:
                         break;
@@ -254,6 +260,7 @@ public static class FilePlayback
                             if (await LoadPlayback(PlaylistManager.CurrentPlaying) && isPartyLeader)
                             {
                                 playlib.BeginReadyCheck();
+                                await Task.Delay(200);
                                 playlib.ConfirmBeginReadyCheck();
                             }
                         }
@@ -274,6 +281,7 @@ public static class FilePlayback
                                     if (isPartyLeader)
                                     {
                                         playlib.BeginReadyCheck();
+                                        await Task.Delay(200);
                                         playlib.ConfirmBeginReadyCheck();
                                     }
                                 }
@@ -296,6 +304,7 @@ public static class FilePlayback
                                     if (isPartyLeader)
                                     {
                                         playlib.BeginReadyCheck();
+                                        await Task.Delay(200);
                                         playlib.ConfirmBeginReadyCheck();
                                     }
                                 }
@@ -314,6 +323,7 @@ public static class FilePlayback
                                     if (isPartyLeader)
                                     {
                                         playlib.BeginReadyCheck();
+                                        await Task.Delay(200);
                                         playlib.ConfirmBeginReadyCheck();
                                     }
                                 }

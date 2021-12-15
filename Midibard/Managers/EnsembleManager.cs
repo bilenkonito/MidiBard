@@ -192,7 +192,10 @@ internal class EnsembleManager : IDisposable
         do
         {
             _sendActionMi.Invoke(null, new object[]{ptr, args});
+            await Task.Yield();
             await Task.Delay(100);
+            await Task.Yield();
+            args[3]++;
         } while ((ptr = _getWindowByName("SelectYesno")) != IntPtr.Zero);
 
         return true;

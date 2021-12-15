@@ -47,17 +47,22 @@ public partial class PluginUI
             RefreshPlotData();
         }
 
-        double realTimelinePos = 0;
         double timelinePos = 0;
+        double realTimelinePos = 0;
 
         try
         {
             var currentPlayback = MidiBard.CurrentPlayback;
             if (currentPlayback != null)
             {
-                timelinePos = currentPlayback.GetCurrentTime<MetricTimeSpan>().GetTotalSeconds();
+                realTimelinePos = timelinePos = currentPlayback.GetCurrentTime<MetricTimeSpan>().GetTotalSeconds();
                 if (MidiBard.AgentMetronome.EnsembleModeRunning)
-                    realTimelinePos = Math.Max(0, timelinePos - MidiBard.AgentMetronome.MetronomeBeatsPerBar);
+                {
+                    timelinePos = Math.Min(
+                        currentPlayback.GetDuration<MetricTimeSpan>().GetTotalSeconds(),
+                        timelinePos) + MidiBard.AgentMetronome.MetronomeBeatsPerBar;
+                    realTimelinePos = Math.Max(MidiBard.AgentMetronome.MetronomeBeatsPerBar, realTimelinePos);
+                }
             }
         }
         catch (Exception e)
@@ -172,12 +177,13 @@ public partial class PluginUI
                     return;
                 }
                 var tmap = MidiBard.CurrentTMap;
+                int offsetSeconds = MidiBard.AgentMetronome.EnsembleModeRunning ?
+                    MidiBard.AgentMetronome.MetronomeBeatsPerBar : 0;
                 data = MidiBard.CurrentTracks.Select(i =>
                     {
                         var trackNotes = i.trackChunk.GetNotes()
-                            .Select(j => (j.TimeAs<MetricTimeSpan>(tmap).GetTotalSeconds(), j.EndTimeAs<MetricTimeSpan>(tmap).GetTotalSeconds(), (int)j.NoteNumber))
+                            .Select(j => (j.TimeAs<MetricTimeSpan>(tmap).GetTotalSeconds() + offsetSeconds, j.EndTimeAs<MetricTimeSpan>(tmap).GetTotalSeconds() + offsetSeconds, (int)j.NoteNumber))
                             .ToArray();
-
                         //var color = Vector4.One;
                         //ColorConvertHSVtoRGB(i.trackInfo.Index / (float)MidiBard.CurrentTracks.Count, 0.8f, 1,
                         //	out color.X, out color.Y, out color.Z);
